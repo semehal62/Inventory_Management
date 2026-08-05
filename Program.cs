@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using Inventory_management_System.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,19 @@ builder.Services.AddControllers()
         options.SerializerSettings.ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver();
         options.SerializerSettings.Formatting = Newtonsoft.Json.Formatting.Indented;
     });
+
+
+
+// Configure memory cache with options
+builder.Services.AddMemoryCache();
+builder.Services.Configure<MemoryCacheOptions>(options =>
+{
+    options.SizeLimit = 1000; // Maximum number of entries
+    options.CompactionPercentage = 0.25; // Remove 25% when limit hit
+    options.ExpirationScanFrequency = TimeSpan.FromMinutes(1);
+});
+
+builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 //builder.Services.AddOpenApi();
 var connectionString = builder.Configuration.GetConnectionString("Default");

@@ -3,18 +3,22 @@ using Inventory_management_System.Dto.Manager;
 using Inventory_management_System.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Inventory_management_System.Controllers.inventroy
 {
 
     [ApiController]
     [Route("[Controller]")]
-    public class ManagerController: ControllerBase
+    public class ManagerController : ControllerBase
     {
-        public readonly InventoryDBContext _context;
-        public ManagerController(InventoryDBContext context)
+        private readonly InventoryDBContext _context;
+        private readonly IMemoryCache _cache;
+        private const string cachekey = "All_Manager";
+        public ManagerController(InventoryDBContext context, IMemoryCache cache)
         {
             _context = context;
+            _cache = cache;
         }
 
         // GETAll
@@ -22,11 +26,18 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetAll()
         {
-            var manager = await _context.Managers.ToListAsync();
 
-            if (manager == null)
-            {
-                return NotFound("There is no Manager");
+            if (!_cache.TryGetValue(cachekey, out List<Manager>? manager){
+                manager = await _context.Managers.ToListAsync();
+
+                if (manager == null)
+                {
+                    return NotFound("There is no Manager");
+                }
+
+                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+
+                _cache.Set(cachekey, manager, option);
             }
 
             return Ok(manager);
@@ -39,13 +50,18 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetById(int id)
         {
+            var key = $"Manager_{id}";
 
-            var man = await _context.Managers.FirstOrDefaultAsync(s => s.Id == id);
-
-            if (man == null)
+            if (!_cache.TryGetValue(key, out Manager ? man))
             {
-                return BadRequest("There is no such manager");
+                man =  await _context.Managers.FirstOrDefaultAsync(s => s.Id == id);
 
+                if (man == null)
+                {
+                    return BadRequest("There is no such manager");
+
+                }
+                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
             }
 
             return Ok(man);
@@ -68,6 +84,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
             if (result > 0)
             {
+                _cache.Remove(cachekey);
                 return Ok("Deleted");
             }
             return BadRequest();
@@ -95,6 +112,7 @@ namespace Inventory_management_System.Controllers.inventroy
             var result = await _context.SaveChangesAsync();
             if (result > 0)
             {
+                _cache.Remove(cachekey);
                 return Ok("Updated");
             }
 
@@ -117,6 +135,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
             if (result > 0)
             {
+                _cache.Remove(cachekey);
                 return Ok("Created");
             }
 

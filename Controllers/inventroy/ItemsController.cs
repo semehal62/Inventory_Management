@@ -2,6 +2,8 @@
 using Inventory_management_System.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using System.Linq.Expressions;
 
 namespace Inventory_management_System.Controllers.inventroy
 {
@@ -10,11 +12,13 @@ namespace Inventory_management_System.Controllers.inventroy
     [Route("[Controller]")]
     public class ItemsController : ControllerBase
     {
-        public readonly InventoryDBContext _context;
-
-        public ItemsController(InventoryDBContext context)
+        private readonly InventoryDBContext _context;
+        private readonly IMemoryCache _cache;
+        private const string cachekey = "All_items";
+        public ItemsController(InventoryDBContext context, IMemoryCache cache)
         {
             _context = context;
+            _cache = cache;
         }
 
 
@@ -23,11 +27,18 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetAll()
         {
-            var item = await _context.Items.ToListAsync();
 
-            if (item == null)
+            if (!_cache.TryGetValue(cachekey, out  List<Item> ? item))
             {
-                return NotFound("There is no Item");
+                 item = await _context.Items.ToListAsync();
+
+                if (item == null)
+                {
+                    return NotFound("There is no Item");
+                }
+                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
+
+                _cache.Set(cachekey, item, option);
             }
 
             return Ok(item);
@@ -39,15 +50,20 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetById(int id)
         {
+            string key = $"item_{id}";
 
-            var item = await _context.Items.FirstOrDefaultAsync(s => s.Id == id);
-
-            if (item == null)
+            if (!_cache.TryGetValue(key, out Item? item))
             {
-                return BadRequest("There is no such Item");
+                item = await _context.Items.FirstOrDefaultAsync(s => s.Id == id);
 
+                if (item == null)
+                {
+                    return BadRequest("There is no such Item");
+
+                }
+
+                _cache.Set(key, item,TimeSpan.FromMinutes(10));
             }
-
             return Ok(item);
         }
 
@@ -65,12 +81,13 @@ namespace Inventory_management_System.Controllers.inventroy
             _context.Items.Remove(item);
             var result = await _context.SaveChangesAsync();
 
-            if (result > 0)
+            if (result < 0)
             {
-                return Ok("Deleted");
+                return BadRequest("Can't delete");
             }
-            return BadRequest("Can't delete");
+            _cache.Remove(cachekey);
 
+            return Ok("Deleted");
         }
 
         //PUt
@@ -100,6 +117,8 @@ namespace Inventory_management_System.Controllers.inventroy
                 return BadRequest();
             }
 
+            _cache.Remove(cachekey);
+
             return Ok("success");
 
         }
@@ -120,12 +139,15 @@ namespace Inventory_management_System.Controllers.inventroy
 
             await _context.Items.AddAsync(it);
             var result = await _context.SaveChangesAsync();
-            if (result > 0)
+            if (result <= 0)
             {
-                return Ok("Created");
+                return BadRequest();
 
             }
-            return BadRequest();
+            _cache.Remove(cachekey);
+
+            return Ok("Created");
+
         }
     }
 }

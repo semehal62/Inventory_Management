@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Inventory_management_System.Migrations
 {
     [DbContext(typeof(InventoryDBContext))]
-    [Migration("20260803131058_init")]
-    partial class init
+    [Migration("20260805070600_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -87,12 +87,11 @@ namespace Inventory_management_System.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("BaseUserId")
-                        .HasColumnType("int");
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("BaseUserId");
 
                     b.ToTable("Employees");
                 });
@@ -139,12 +138,11 @@ namespace Inventory_management_System.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("BaseUserId")
-                        .HasColumnType("int");
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("BaseUserId");
 
                     b.ToTable("Managers");
                 });
@@ -157,7 +155,7 @@ namespace Inventory_management_System.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("BaseUserId")
+                    b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
                     b.Property<int>("ItemsId")
@@ -177,7 +175,7 @@ namespace Inventory_management_System.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BaseUserId");
+                    b.HasIndex("EmployeeId");
 
                     b.HasIndex("ItemsId");
 
@@ -195,17 +193,6 @@ namespace Inventory_management_System.Migrations
                     b.Navigation("Sold");
                 });
 
-            modelBuilder.Entity("Inventory_management_System.Models.Employee", b =>
-                {
-                    b.HasOne("Inventory_management_System.Models.BaseUser", "User")
-                        .WithMany()
-                        .HasForeignKey("BaseUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Inventory_management_System.Models.Item", b =>
                 {
                     b.HasOne("Inventory_management_System.Models.Manager", "Manager")
@@ -215,22 +202,11 @@ namespace Inventory_management_System.Migrations
                     b.Navigation("Manager");
                 });
 
-            modelBuilder.Entity("Inventory_management_System.Models.Manager", b =>
-                {
-                    b.HasOne("Inventory_management_System.Models.BaseUser", "User")
-                        .WithMany()
-                        .HasForeignKey("BaseUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Inventory_management_System.Models.Sale", b =>
                 {
-                    b.HasOne("Inventory_management_System.Models.BaseUser", "Users")
+                    b.HasOne("Inventory_management_System.Models.Employee", "Employee")
                         .WithMany()
-                        .HasForeignKey("BaseUserId")
+                        .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -240,9 +216,9 @@ namespace Inventory_management_System.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Items");
+                    b.Navigation("Employee");
 
-                    b.Navigation("Users");
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

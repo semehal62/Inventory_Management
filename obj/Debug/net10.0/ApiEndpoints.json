@@ -79,6 +79,22 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "Inventory_management_System.Controllers.inventroy.AuthController",
+    "Method": "login",
+    "RelativePath": "Auth/login",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "log",
+        "Type": "Inventory_management_System.Dto.LoginDto.LoginRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "Inventory_management_System.Controllers.inventroy.EmployeeController",
     "Method": "Create",
     "RelativePath": "Employee/Create",
