@@ -3280,11 +3280,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Semeh\\OneDrive\\Desktop\\code\\Inventory management System\\Inventory management System\\Inventory management System.csproj",
+      "projectUniqueName": "D:\\Inventory management System\\Inventory management System.csproj",
       "projectName": "Inventory management System",
-      "projectPath": "C:\\Users\\Semeh\\OneDrive\\Desktop\\code\\Inventory management System\\Inventory management System\\Inventory management System.csproj",
+      "projectPath": "D:\\Inventory management System\\Inventory management System.csproj",
       "packagesPath": "C:\\Users\\Semeh\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Semeh\\OneDrive\\Desktop\\code\\Inventory management System\\Inventory management System\\obj\\",
+      "outputPath": "D:\\Inventory management System\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
