@@ -2,6 +2,7 @@
 using Inventory_management_System.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Inventory_management_System.Controllers.inventroy
 {
@@ -9,10 +10,14 @@ namespace Inventory_management_System.Controllers.inventroy
     [Route("[Controller]")]
     public class EmployeeController : ControllerBase
     {
-        public readonly InventoryDBContext _context;
-        public EmployeeController(InventoryDBContext context)
+        private readonly IMemoryCache _cache;
+        private  readonly InventoryDBContext _context;
+        const string cachekey = "All_Employee";
+        public EmployeeController(InventoryDBContext context,IMemoryCache cache)
         {
             _context = context;
+
+            _cache = cache;
         }
 
         // GETAll
@@ -20,13 +25,17 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetAll()
         {
-            var Emp = await _context.Employees.ToListAsync();
+            if (!_cache.TryGetValue(cachekey, out List<Employee>? Emp){
+                Emp = await _context.Employees.ToListAsync();
 
-            if (Emp == null)
-            {
-                return NotFound("There is no Employee");
+                if (Emp == null)
+                {
+                    return NotFound("There is no Employee");
+                }
+                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+
+                _cache.Set(cachekey, Emp, option);
             }
-
             return Ok(Emp);
         }
 
@@ -36,15 +45,19 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetById(int id)
         {
-
-            var emp = await _context.Employees.FirstOrDefaultAsync(s => s.Id == id);
-
-            if (emp == null)
+            var key = $"Employee{id}";
+            if (!_cache.TryGetValue(key, out Employee? emp))
             {
-                return BadRequest("There is no such  an employee");
+                 emp = await _context.Employees.FirstOrDefaultAsync(s => s.Id == id);
 
+                if (emp == null)
+                {
+                    return BadRequest("There is no such  an employee");
+
+                }
+                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                _cache.Set(key, emp, option);
             }
-
             return Ok(emp);
         }
         // Delete
@@ -63,6 +76,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
             if (result > 0)
             {
+                _cache.Remove(cachekey);
                 return Ok("Deleted");
             }
             return BadRequest();
@@ -89,6 +103,7 @@ namespace Inventory_management_System.Controllers.inventroy
             var result = await _context.SaveChangesAsync();
             if (result > 0)
             {
+                _cache.Remove(cachekey);
                 return Ok("Success");
             }
 
@@ -111,6 +126,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
             if (result > 0)
             {
+                _cache.Remove(cachekey);
                 return Ok("Success");
             }
 

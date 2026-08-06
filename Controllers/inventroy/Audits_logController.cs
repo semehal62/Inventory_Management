@@ -2,6 +2,7 @@
 using Inventory_management_System.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Inventory_management_System.Controllers.inventroy
 {
@@ -10,11 +11,15 @@ namespace Inventory_management_System.Controllers.inventroy
     [Route("[Controller]")]
     public class Audits_logController : ControllerBase
     {
-        public readonly InventoryDBContext _context;
+        private readonly InventoryDBContext _context;
+        private readonly IMemoryCache _cache;
 
-        public Audits_logController(InventoryDBContext context)
+        const string cachekey = "All_Audits";
+
+        public Audits_logController(InventoryDBContext context, IMemoryCache cache)
         {
             _context = context;
+            _cache = cache;
 
         }
 
@@ -23,24 +28,32 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetAll()
         {
-            var Audit = await _context.Audit_logs.ToListAsync();
+            //AudtVeiwDto ? auditData = null;
 
 
-            if (Audit == null)
+            if (!_cache.TryGetValue(cachekey, out List<AudtViewDto>? auditData))
             {
-                return NotFound("There is no Audit");
+                var Audit = await _context.Audit_logs.ToListAsync();
+
+
+                if (Audit == null)
+                {
+                    return NotFound("There is no Audit");
+                }
+                auditData = Audit.Select(p => new AudtViewDto
+                {
+                    Id = p.Id,
+                    Sold = p.Sold,
+                    SoldId = p.SoldId,
+                    AI_Status = p.AI_Status.ToString(),
+                    Anomalies_Detedced = p.Anomalies_Detedced
+
+                }).ToList();
+
+                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                _cache.Set(cachekey, auditData, option);
+
             }
-            var auditData = Audit.Select(p=> new AudtViewDto
-            {
-                Id = p.Id,
-                Sold = p.Sold,
-                SoldId = p.SoldId,
-                AI_Status = p.AI_Status.ToString(),
-                Anomalies_Detedced = p.Anomalies_Detedced
-
-            }).ToList();
-
-
             return Ok(auditData);
         }
 
@@ -51,15 +64,19 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetById(int id)
         {
-
-            var audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.Id == id);
-
-            if (audit == null)
+            var key = $"Audit{id}";
+            if (_cache.TryGetValue(key, out var audit))
             {
-                return BadRequest("There is no such an Audit");
+                audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.Id == id);
 
+                if (audit == null)
+                {
+                    return BadRequest("There is no such an Audit");
+
+                }
+                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                _cache.Set(key,audit, option);
             }
-
             return Ok(audit);
         }
 
@@ -79,6 +96,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
             if (result > 0)
             {
+                _cache.Remove(cachekey);
                 return Ok("Deleted");
             }
             return BadRequest();
@@ -107,6 +125,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
             if (result > 0)
             {
+                _cache.Remove(cachekey);
                 return Ok("updated");
             }
             return NotFound();
@@ -128,7 +147,7 @@ namespace Inventory_management_System.Controllers.inventroy
                 existingSale.AI_Status = aud.AI_Status;
                 existingSale.Anomalies_Detedced = aud.Anomalies_Detedced;
 
-                 _context.Audit_logs.Attach(existingSale);
+                _context.Audit_logs.Attach(existingSale);
 
                 await _context.SaveChangesAsync();
                 return Ok("Updated");
@@ -146,6 +165,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
             if (result > 0)
             {
+                _cache.Remove(cachekey);
                 return Ok("Created");
             }
 
