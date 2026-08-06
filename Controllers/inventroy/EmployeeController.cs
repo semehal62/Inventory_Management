@@ -25,7 +25,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetAll()
         {
-            if (!_cache.TryGetValue(cachekey, out List<Employee>? Emp){
+            if (!_cache.TryGetValue(cachekey, out List<Employee>? Emp)){
                 Emp = await _context.Employees.ToListAsync();
 
                 if (Emp == null)
