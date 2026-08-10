@@ -4,7 +4,6 @@ using Inventory_management_System.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -12,11 +11,9 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Inventory_management_System.Migrations
 {
     [DbContext(typeof(InventoryDBContext))]
-    [Migration("20260805070600_InitialCreate")]
-    partial class InitialCreate
+    partial class InventoryDBContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -36,7 +33,11 @@ namespace Inventory_management_System.Migrations
                     b.Property<int>("AI_Status")
                         .HasColumnType("int");
 
-                    b.Property<string>("Anomalies_Detedced")
+                    b.Property<string>("Anomalies_Detected")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Explanation")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

@@ -8,6 +8,8 @@ namespace Inventory_management_System.Dto.Audit_log
         public int SoldId { get; set; }
         public required string AI_Status { get; set; }
         public required String Anomalies_Detedced { get; set; }
- 
+        public required string Explanation { get; set; }
+
+
     }
 }

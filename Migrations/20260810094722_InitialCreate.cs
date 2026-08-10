@@ -114,7 +114,8 @@ namespace Inventory_management_System.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     SoldId = table.Column<int>(type: "int", nullable: false),
                     AI_Status = table.Column<int>(type: "int", nullable: false),
-                    Anomalies_Detedced = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    Anomalies_Detected = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Explanation = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
                 {

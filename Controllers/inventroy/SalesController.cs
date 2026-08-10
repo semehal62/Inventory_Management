@@ -1,5 +1,6 @@
 ﻿using Inventory_management_System.Dto.Sales;
 using Inventory_management_System.Models;
+using Inventory_management_System.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -13,11 +14,13 @@ namespace Inventory_management_System.Controllers.inventroy
     {
         public readonly InventoryDBContext _context;
         private readonly IMemoryCache _cache;
+        private readonly IAIServices _aiservices;
         const string cachekey = "All_Sales";
-        public SalesController(InventoryDBContext context, IMemoryCache cache)
+        public SalesController(InventoryDBContext context, IMemoryCache cache, IAIServices aisevices)
         {
             _context = context;
             _cache = cache;
+            _aiservices = aisevices;
         }
 
         // GETAll
@@ -134,12 +137,30 @@ namespace Inventory_management_System.Controllers.inventroy
             await _context.Sales.AddAsync(sold);
             var result = await _context.SaveChangesAsync();
 
-            if (result > 0)
+            if (result <= 0)
             {
-                _cache.Remove(cachekey);
-                return Ok("Create");
+                return NotFound();
             }
-            return NotFound();
+            var aiResult = await _aiservices.AnalyzeSaleAsync(sold);
+
+            var auditLog = new Audit_Log
+            {
+                SoldId = sold.Id,
+                AI_Status = aiResult.Status,
+                Anomalies_Detected = aiResult.Anomalies_Detected,
+                Explanation = aiResult.Explanation
+            };
+
+            await _context.Audit_logs.AddAsync(auditLog);
+            await _context.SaveChangesAsync();
+
+            _cache.Remove(cachekey);
+            return Ok(new
+                {
+                Message = "Sale created and audited successfully",
+                SaleId = sold.Id,
+                Audit = aiResult
+            });
         }
     }
 

@@ -36,7 +36,7 @@ namespace Inventory_management_System.Controllers.inventroy
                 {
                     return NotFound("There is no Item");
                 }
-                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
+                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(5)).SetSize(1);
 
                 _cache.Set(cachekey, item, option);
             }

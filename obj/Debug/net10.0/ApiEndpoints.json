@@ -1,5 +1,15 @@
 [
   {
+    "ContainingType": "Inventory_management_System.Controllers.inventroy.AIController",
+    "Method": "Test",
+    "RelativePath": "api/AI/test",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "Inventory_management_System.Controllers.inventroy.Audits_logController",
     "Method": "Create",
     "RelativePath": "Audits_log/Create",

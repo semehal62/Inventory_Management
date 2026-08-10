@@ -46,7 +46,8 @@ namespace Inventory_management_System.Controllers.inventroy
                     Sold = p.Sold,
                     SoldId = p.SoldId,
                     AI_Status = p.AI_Status.ToString(),
-                    Anomalies_Detedced = p.Anomalies_Detedced
+                    Anomalies_Detedced = p.Anomalies_Detected,
+                    Explanation = p.Explanation
 
                 }).ToList();
 
@@ -115,7 +116,7 @@ namespace Inventory_management_System.Controllers.inventroy
             }
             audit.AI_Status = aud.AI_Status;
 
-            audit.Anomalies_Detedced = aud.Anomalies_Detedced;
+            audit.Anomalies_Detected = aud.Anomalies_Detedced;
             audit.SoldId = aud.SoldId;
 
             _context.Audit_logs.Attach(audit);
@@ -145,7 +146,7 @@ namespace Inventory_management_System.Controllers.inventroy
             {
                 // update
                 existingSale.AI_Status = aud.AI_Status;
-                existingSale.Anomalies_Detedced = aud.Anomalies_Detedced;
+                existingSale.Anomalies_Detected = aud.Anomalies_Detedced;
 
                 _context.Audit_logs.Attach(existingSale);
 
@@ -156,8 +157,9 @@ namespace Inventory_management_System.Controllers.inventroy
             var Audit = new Audit_Log
             {
                 AI_Status = aud.AI_Status,
-                Anomalies_Detedced = aud.Anomalies_Detedced,
-                SoldId = aud.SoldId
+                Anomalies_Detected = aud.Anomalies_Detedced,
+                SoldId = aud.SoldId,
+                Explanation = aud.Explanation
             };
 
             await _context.Audit_logs.AddAsync(Audit);

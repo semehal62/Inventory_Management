@@ -32,7 +32,7 @@ namespace Inventory_management_System.Controllers.inventroy
                 {
                     return NotFound("There is no Employee");
                 }
-                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)).SetSize(1);
 
                 _cache.Set(cachekey, Emp, option);
             }
