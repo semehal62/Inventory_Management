@@ -1,7 +1,9 @@
 ﻿namespace Inventory_management_System.Models
 {
-    public class Item: BaseEntity
+    public class Item
     {
+        public int Id { get; set; }
+        public string Name { get; set; }
         public required int Quantity { get; set; }
         public required int Price { get; set; }
         public Manager ? Manager { get; set; }

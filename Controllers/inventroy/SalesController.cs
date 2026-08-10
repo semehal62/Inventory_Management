@@ -1,6 +1,7 @@
 ﻿using Inventory_management_System.Dto.Sales;
 using Inventory_management_System.Models;
 using Inventory_management_System.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -24,6 +25,7 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         // GETAll
+        [Authorize]
         [HttpGet("GetAll")]
 
         public async Task<IActionResult> GetAll()
@@ -45,7 +47,7 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         // GetById
-
+        [Authorize]
         [HttpGet("GetById/{id}")]
 
         public async Task<IActionResult> GetById(int id)
@@ -71,6 +73,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
         // Delete
 
+        [Authorize(Roles = "Manager")]
         [HttpDelete("Delete/{id}")]
 
         public async Task<IActionResult> Delete(int id)
@@ -93,6 +96,8 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         //PUT
+
+        [Authorize]
         [HttpPut("Update/{id}")]
         public async Task<IActionResult> Updated(int id, CreateSale sal)
         {
@@ -120,6 +125,7 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         //POST
+        [Authorize]
         [HttpPost("Create")]
 
         public async Task<IActionResult> Create(CreateSale sale)

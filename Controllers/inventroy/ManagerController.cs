@@ -1,6 +1,6 @@
-﻿using Inventory_management_System.Dto.Employee;
-using Inventory_management_System.Dto.Manager;
+﻿using Inventory_management_System.Dto.Manager;
 using Inventory_management_System.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -22,13 +22,15 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         // GETAll
+        [Authorize]
         [HttpGet("GetAll")]
 
         public async Task<IActionResult> GetAll()
         {
 
-            if (!_cache.TryGetValue(cachekey, out List<Manager>? manager)){
-                manager = await _context.Managers.ToListAsync();
+            if (!_cache.TryGetValue(cachekey, out List<Manager>? manager))
+            {
+                manager = await _context.Managers.Include(s => s.BaseUser).ToListAsync();
 
                 if (manager == null)
                 {
@@ -45,16 +47,16 @@ namespace Inventory_management_System.Controllers.inventroy
 
 
         // GetById
-
+        [Authorize]
         [HttpGet("GetById/{id}")]
 
         public async Task<IActionResult> GetById(int id)
         {
             var key = $"Manager_{id}";
 
-            if (!_cache.TryGetValue(key, out Manager ? man))
+            if (!_cache.TryGetValue(key, out Manager? man))
             {
-                man =  await _context.Managers.FirstOrDefaultAsync(s => s.Id == id);
+                man = await _context.Managers.Include(s => s.BaseUser).FirstOrDefaultAsync(s => s.id == id);
 
                 if (man == null)
                 {
@@ -68,78 +70,103 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         // Delete
+        [Authorize(Roles = "Manager")]
 
         [HttpDelete("Delete/{id}")]
 
         public async Task<IActionResult> Delete(int id)
         {
-            var manager = await _context.Managers.FirstOrDefaultAsync(s => s.Id == id);
-            if (manager == null)
-            {
-                return BadRequest();
-            }
+            var transaction = await _context.Database.BeginTransactionAsync();
 
-            _context.Managers.Remove(manager);
-            var result = await _context.SaveChangesAsync();
-
-            if (result > 0)
+            try
             {
+                var manager = await _context.Managers.FirstOrDefaultAsync(s => s.id == id);
+                var Buser = await _context.Users.FirstOrDefaultAsync(s => s.Id == manager.BaseUserId);
+
+                _context.Managers.Remove(manager);
+                _context.Users.Remove(Buser);
                 _cache.Remove(cachekey);
+
+                transaction.Commit();
                 return Ok("Deleted");
             }
-            return BadRequest();
-
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest(ex.Message);
+            }
         }
 
 
         //Update
+        [Authorize(Roles = "Manager")]
 
         [HttpPut("Update/{id}")]
 
         public async Task<IActionResult> Update(int id, CreateManager man)
         {
-            var manager = await _context.Managers.FirstOrDefaultAsync(x => x.Id == id);
-            if (manager == null)
+            var transaction = await  _context.Database.BeginTransactionAsync();
+            try
             {
-                return NotFound();
-            }
+                var manager = await _context.Managers.FirstOrDefaultAsync(x => x.id == id);
 
-            manager.Name = man.Name;
+                var Buser = await _context.Users.FirstOrDefaultAsync(s => s.Id == manager.BaseUserId);
+                Buser.Name = man.Name;
 
-            _context.Managers.Attach(manager);
-            _context.Managers.Attach(manager).State = EntityState.Modified;
-
-            var result = await _context.SaveChangesAsync();
-            if (result > 0)
-            {
+                _context.Users.Attach(Buser);
                 _cache.Remove(cachekey);
-                return Ok("Updated");
-            }
 
-            return NotFound();
+                transaction.Commit();
+                return Ok("Updated");
+
+            }
+            catch (Exception e)
+            {
+                await transaction.RollbackAsync();
+                return NotFound(e.Message);
+
+            }
 
         }
 
         //POST
+        [Authorize(Roles = "Manager")]
+
         [HttpPost("Create")]
         public async Task<IActionResult> Create(CreateManager man)
         {
-            var manager = new Manager
+            var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                Name = man.Name
+                var Buser = new BaseUser
+                {
+                    Name = man.Name,
+                    Username = man.Username,
+                    Password = man.Password,
+                    Role = "Manager"
 
-            };
+                };
 
-            await _context.Managers.AddAsync(manager);
-            var result = await _context.SaveChangesAsync();
+                await _context.Users.AddAsync(Buser);
+                var manager = new Manager { BaseUserId = Buser.Id };
 
-            if (result > 0)
-            {
+                await _context.Managers.AddAsync(manager);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
                 _cache.Remove(cachekey);
                 return Ok("Created");
+
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest(ex.Message);
+
             }
 
-            return BadRequest(result);
+
+
         }
 
 

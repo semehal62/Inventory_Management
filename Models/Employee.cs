@@ -1,6 +1,9 @@
 ﻿namespace Inventory_management_System.Models
 {
-    public class Employee:BaseEntity
+    public class Employee
     {
+        public  int id {  get; set; }
+        public BaseUser? BaseUser { get; set; }
+        public required  int BaseUserId {  get; set; }
     }
 }
