@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.AspNetCore.Identity;
 
 namespace Inventory_management_System.Controllers.inventroy
 {
@@ -13,12 +14,13 @@ namespace Inventory_management_System.Controllers.inventroy
     {
         private readonly IMemoryCache _cache;
         private readonly InventoryDBContext _context;
+        private readonly IPasswordHasher<BaseUser> _passwordHasher;
         const string cachekey = "All_Employee";
-        public EmployeeController(InventoryDBContext context, IMemoryCache cache)
+        public EmployeeController(InventoryDBContext context, IMemoryCache cache, IPasswordHasher<BaseUser> passwordHasher)
         {
             _context = context;
-
             _cache = cache;
+            _passwordHasher = passwordHasher;
         }
 
         // GETAll
@@ -27,19 +29,20 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetAll()
         {
-            if (!_cache.TryGetValue(cachekey, out List<Employee>? Emp))
+            try
             {
-                Emp = await _context.Employees.Include(s => s.BaseUser).ToListAsync();
-
-                if (Emp == null)
+                if (!_cache.TryGetValue(cachekey, out List<Employee>? Emp))
                 {
-                    return NotFound("There is no Employee");
+                    Emp = await _context.Employees.Include(s => s.BaseUser).ToListAsync();
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)).SetSize(1);
+                    _cache.Set(cachekey, Emp, option);
                 }
-                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)).SetSize(1);
-
-                _cache.Set(cachekey, Emp, option);
+                return Ok(Emp);
             }
-            return Ok(Emp);
+            catch (Exception ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
 
         // GetById
@@ -48,20 +51,21 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetById(int id)
         {
-            var key = $"Employee{id}";
-            if (!_cache.TryGetValue(key, out Employee? emp))
+            try
             {
-                emp = await _context.Employees.Include(s => s.BaseUser).FirstOrDefaultAsync(s => s.BaseUserId == id);
-
-                if (emp == null)
+                var key = $"Employee{id}";
+                if (!_cache.TryGetValue(key, out Employee? emp))
                 {
-                    return BadRequest("There is no such  an employee");
-
+                    emp = await _context.Employees.Include(s => s.BaseUser).FirstOrDefaultAsync(s => s.BaseUserId == id);
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    _cache.Set(key, emp, option);
                 }
-                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
-                _cache.Set(key, emp, option);
+                return Ok(emp);
             }
-            return Ok(emp);
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
         // Delete
         [Authorize(Roles = "Manager")]
@@ -72,25 +76,22 @@ namespace Inventory_management_System.Controllers.inventroy
             var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-
                 var emp = await _context.Employees.FirstOrDefaultAsync(s => s.id == id);
                 var BId = emp.BaseUserId;
-                var baseuser = await _context.Users.FirstOrDefaultAsync(s => s.Id == BId);
+                var baseuser = await _context.Users.FirstOrDefaultAsync(s => s.id == BId);
 
                 _context.Employees.Remove(emp);
                 _context.Users.Remove(baseuser);
-                var result = await _context.SaveChangesAsync();
 
-
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
                 _cache.Remove(cachekey);
-                transaction.Commit();
                 return Ok("Deleted");
-
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return BadRequest();
+                return BadRequest(ex.Message);
             }
 
         }
@@ -105,16 +106,15 @@ namespace Inventory_management_System.Controllers.inventroy
             try
             {
                 var employee = await _context.Employees.FirstOrDefaultAsync(x => x.id == id);
-                var Emp = await _context.Users.FirstOrDefaultAsync(x => x.Id == employee.BaseUserId);
+                var Emp = await _context.Users.FirstOrDefaultAsync(x => x.id == employee.BaseUserId);
                 Emp.Name = emp.Name;
 
                 _context.Users.Attach(Emp);
                 _context.Users.Attach(Emp).State = EntityState.Modified;
 
-                var result = await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
                 _cache.Remove(cachekey);
-
-                transaction.Commit();
                 return Ok("Success");
 
             }
@@ -145,13 +145,17 @@ namespace Inventory_management_System.Controllers.inventroy
                     Role = "Employee"
 
                 };
-                await _context.Users.AddAsync(employee);
 
-                var new_Employee = new Employee { BaseUserId = employee.Id };
+                employee.Password = _passwordHasher.HashPassword(employee, emp.Password);
+                await _context.Users.AddAsync(employee);
+                await _context.SaveChangesAsync();
+
+                var new_Employee = new Employee { BaseUserId = employee.id };
                 await _context.Employees.AddAsync(new_Employee);
 
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
                 _cache.Remove(cachekey);
-                transaction.Commit();
                 return Ok("Success");
             }
             catch (Exception ex)

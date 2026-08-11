@@ -30,20 +30,20 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetAll()
         {
-            if (!_cache.TryGetValue(cachekey, out List<Sale>? sale))
+            try
             {
-                sale = await _context.Sales.ToListAsync();
-
-
-                if (sale == null)
+                if (!_cache.TryGetValue(cachekey, out List<Sale>? sale))
                 {
-                    return NotFound("There is no Sales");
+                    sale = await _context.Sales.ToListAsync();
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    _cache.Set(cachekey, sale, option);
                 }
-
-                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
-                _cache.Set(cachekey,sale, option);
+                return Ok(sale);
             }
-            return Ok(sale);
+            catch (Exception ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
 
         // GetById
@@ -52,23 +52,22 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetById(int id)
         {
-            var key = $"Sales{id}";
-
-            if (!_cache.TryGetValue(key, out Sale ? sale))
+            try
             {
+                var key = $"Sales{id}";
 
-                sale = await _context.Sales.FirstOrDefaultAsync(s => s.Id == id);
-
-                if (sale == null)
+                if (!_cache.TryGetValue(key, out Sale? sale))
                 {
-                    return BadRequest("There is no such employee");
-
+                    sale = await _context.Sales.FirstOrDefaultAsync(s => s.Id == id);
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    _cache.Set(cachekey, sale, option);
                 }
-                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
-                _cache.Set(cachekey, sale, option);
-
+                return Ok(sale);
             }
-            return Ok(sale);
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         // Delete
@@ -78,20 +77,22 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> Delete(int id)
         {
-            var sale = await _context.Sales.FirstOrDefaultAsync(s => s.Id == id);
-            if (sale == null)
+            var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                return BadRequest();
-            }
-            _context.Sales.Remove(sale);
-            var result = await _context.SaveChangesAsync();
-
-            if (result > 0)
-            {
+                var sale = await _context.Sales.FirstOrDefaultAsync(s => s.Id == id);
+                _context.Sales.Remove(sale);
                 _cache.Remove(cachekey);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok("Deleted");
             }
-            return BadRequest();
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest(ex.Message);
+            }
 
         }
 
@@ -101,27 +102,29 @@ namespace Inventory_management_System.Controllers.inventroy
         [HttpPut("Update/{id}")]
         public async Task<IActionResult> Updated(int id, CreateSale sal)
         {
-            var sale = await _context.Sales.FirstOrDefaultAsync(d => d.Id == id);
-            if (sale == null)
+            var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                return BadRequest();
-            }
-            sale.EmployeeId = sal.EmployeeId;
-            sale.ItemsId = sal.ItemsId;
-            sale.Quantity_Sold = sal.Quantity_Sold;
-            sale.Total_prices = sal.Total_prices;
-            sale.Sold_date = DateTime.UtcNow;
+                var sale = await _context.Sales.FirstOrDefaultAsync(d => d.Id == id);
+                sale.EmployeeId = sal.EmployeeId;
+                sale.ItemsId = sal.ItemsId;
+                sale.Quantity_Sold = sal.Quantity_Sold;
+                sale.Total_prices = sal.Total_prices;
+                sale.Sold_date = DateTime.UtcNow;
 
-            _context.Sales.Attach(sale);
-            _context.Sales.Attach(sale).State = EntityState.Modified;
-            var result = await _context.SaveChangesAsync();
-
-            if (result > 0)
-            {
+                _context.Sales.Attach(sale);
+                _context.Sales.Attach(sale).State = EntityState.Modified;
                 _cache.Remove(cachekey);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok("suncess");
             }
-            return BadRequest();
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest(ex.Message);
+            }
         }
 
         //POST
@@ -130,43 +133,46 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> Create(CreateSale sale)
         {
-            var sold = new Sale
+            var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                EmployeeId = sale.EmployeeId,
-                ItemsId = sale.ItemsId,
-                Quantity_Sold = sale.Quantity_Sold,
-                Total_prices = sale.Total_prices
-
-            };
-
-
-            await _context.Sales.AddAsync(sold);
-            var result = await _context.SaveChangesAsync();
-
-            if (result <= 0)
-            {
-                return NotFound();
-            }
-            var aiResult = await _aiservices.AnalyzeSaleAsync(sold);
-
-            var auditLog = new Audit_Log
-            {
-                SoldId = sold.Id,
-                AI_Status = aiResult.Status,
-                Anomalies_Detected = aiResult.Anomalies_Detected,
-                Explanation = aiResult.Explanation
-            };
-
-            await _context.Audit_logs.AddAsync(auditLog);
-            await _context.SaveChangesAsync();
-
-            _cache.Remove(cachekey);
-            return Ok(new
+                var sold = new Sale
                 {
-                Message = "Sale created and audited successfully",
-                SaleId = sold.Id,
-                Audit = aiResult
-            });
+                    EmployeeId = sale.EmployeeId,
+                    ItemsId = sale.ItemsId,
+                    Quantity_Sold = sale.Quantity_Sold,
+                    Total_prices = sale.Total_prices
+
+                };
+
+                await _context.Sales.AddAsync(sold);
+                var aiResult = await _aiservices.AnalyzeSaleAsync(sold);
+
+                var auditLog = new Audit_Log
+                {
+                    SoldId = sold.Id,
+                    AI_Status = aiResult.Status,
+                    Anomalies_Detected = aiResult.Anomalies_Detected,
+                    Explanation = aiResult.Explanation
+                };
+
+                await _context.Audit_logs.AddAsync(auditLog);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                _cache.Remove(cachekey);
+                return Ok(new
+                {
+                    Message = "Sale created and audited successfully",
+                    SaleId = sold.Id,
+                    Audit = aiResult
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest(ex.Message);
+            }
         }
     }
 

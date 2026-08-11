@@ -4,7 +4,7 @@ namespace Inventory_management_System.Models
 {
     public class BaseUser
     {
-        public int  Id { get; set; }
+        public int  id { get; set; }
         public required string Name { get; set; }
         public required string Username { get; set; }
         public required string Password { get; set; }

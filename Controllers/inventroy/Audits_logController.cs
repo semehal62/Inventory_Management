@@ -32,32 +32,32 @@ namespace Inventory_management_System.Controllers.inventroy
         {
             //AudtVeiwDto ? auditData = null;
 
-
-            if (!_cache.TryGetValue(cachekey, out List<AudtViewDto>? auditData))
+            try
             {
-                var Audit = await _context.Audit_logs.ToListAsync();
-
-
-                if (Audit == null)
+                if (!_cache.TryGetValue(cachekey, out List<AudtViewDto>? auditData))
                 {
-                    return NotFound("There is no Audit");
+                    var Audit = await _context.Audit_logs.ToListAsync();
+                    auditData = Audit.Select(p => new AudtViewDto
+                    {
+                        Id = p.id,
+                        Sold = p.Sold,
+                        SoldId = p.SoldId,
+                        AI_Status = p.AI_Status.ToString(),
+                        Anomalies_Detedced = p.Anomalies_Detected,
+                        Explanation = p.Explanation
+
+                    }).ToList();
+
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    _cache.Set(cachekey, auditData, option);
+
                 }
-                auditData = Audit.Select(p => new AudtViewDto
-                {
-                    Id = p.Id,
-                    Sold = p.Sold,
-                    SoldId = p.SoldId,
-                    AI_Status = p.AI_Status.ToString(),
-                    Anomalies_Detedced = p.Anomalies_Detected,
-                    Explanation = p.Explanation
-
-                }).ToList();
-
-                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
-                _cache.Set(cachekey, auditData, option);
-
+                return Ok(auditData);
             }
-            return Ok(auditData);
+            catch (Exception ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
 
 
@@ -67,117 +67,130 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetById(int id)
         {
-            var key = $"Audit{id}";
-            if (_cache.TryGetValue(key, out var audit))
+            try
             {
-                audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.Id == id);
-
-                if (audit == null)
+                var key = $"Audit{id}";
+                if (_cache.TryGetValue(key, out var audit))
                 {
-                    return BadRequest("There is no such an Audit");
-
+                    audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.id == id);
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    _cache.Set(key, audit, option);
                 }
-                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
-                _cache.Set(key,audit, option);
+                return Ok(audit);
             }
-            return Ok(audit);
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+
+            }
         }
 
         // Delete
-        
+
         [Authorize(Roles = "Manager")]
         [HttpDelete("Delete/{id}")]
 
         public async Task<IActionResult> Delete(int id)
         {
-            var audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.Id == id);
-            if (audit == null)
+            var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                return BadRequest();
-            }
-            _context.Audit_logs.Remove(audit);
-            var result = await _context.SaveChangesAsync();
+                var audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.id == id);
+                _context.Audit_logs.Remove(audit);
 
-            if (result > 0)
-            {
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
                 _cache.Remove(cachekey);
                 return Ok("Deleted");
             }
-            return BadRequest();
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest(ex.Message);
+            }
 
         }
 
         //PUT
-        [Authorize]
+        [Authorize(Roles = "Manager")]
         [HttpPut("Update/{id}")]
 
         public async Task<IActionResult> Update(int id, CreateAudit_log aud)
         {
-            var audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.Id == id);
-            if (audit == null)
+            var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                return NotFound();
-            }
-            audit.AI_Status = aud.AI_Status;
+                var audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.id == id);
+                audit.AI_Status = aud.AI_Status;
 
-            audit.Anomalies_Detected = aud.Anomalies_Detedced;
-            audit.SoldId = aud.SoldId;
+                audit.Anomalies_Detected = aud.Anomalies_Detedced;
+                audit.SoldId = aud.SoldId;
 
-            _context.Audit_logs.Attach(audit);
-            _context.Audit_logs.Attach(audit).State = EntityState.Modified;
+                _context.Audit_logs.Attach(audit);
+                _context.Audit_logs.Attach(audit).State = EntityState.Modified;
 
-            var result = await _context.SaveChangesAsync();
-
-            if (result > 0)
-            {
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
                 _cache.Remove(cachekey);
                 return Ok("updated");
             }
-            return NotFound();
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return NotFound(ex.Message);
+            }
 
         }
 
+        //
+        ////POST
+        //[Authorize(Roles = "Manager")]
+        //[HttpPost("Create")]
 
-        //POST
-        [Authorize(Roles = "Manager")]
-        [HttpPost("Create")]
+        //public async Task<IActionResult> Create(CreateAudit_log aud)
+        //{
 
-        public async Task<IActionResult> Create(CreateAudit_log aud)
-        {
+        //    var transaction = await _context.Database.BeginTransactionAsync();
+        //    try
+        //    {
 
+        //    var existingSale = await _context.Audit_logs.FirstOrDefaultAsync(s => s.SoldId == aud.SoldId);
+        //    if (existingSale != null)
+        //    {
+        //        // update
+        //        existingSale.AI_Status = aud.AI_Status;
+        //        existingSale.Anomalies_Detected = aud.Anomalies_Detedced;
 
-            var existingSale = await _context.Audit_logs.FirstOrDefaultAsync(s => s.SoldId == aud.SoldId);
-            if (existingSale != null)
-            {
-                // update
-                existingSale.AI_Status = aud.AI_Status;
-                existingSale.Anomalies_Detected = aud.Anomalies_Detedced;
+        //        _context.Audit_logs.Attach(existingSale);
 
-                _context.Audit_logs.Attach(existingSale);
+        //        await _context.SaveChangesAsync();
+        //        return Ok("Updated");
 
-                await _context.SaveChangesAsync();
-                return Ok("Updated");
+        //    }
+        //    var Audit = new Audit_Log
+        //    {
+        //        AI_Status = aud.AI_Status,
+        //        Anomalies_Detected = aud.Anomalies_Detedced,
+        //        SoldId = aud.SoldId,
+        //        Explanation = aud.Explanation
+        //    };
 
-            }
-            var Audit = new Audit_Log
-            {
-                AI_Status = aud.AI_Status,
-                Anomalies_Detected = aud.Anomalies_Detedced,
-                SoldId = aud.SoldId,
-                Explanation = aud.Explanation
-            };
+        //    await _context.Audit_logs.AddAsync(Audit);
+        //    var result = await _context.SaveChangesAsync();
 
-            await _context.Audit_logs.AddAsync(Audit);
-            var result = await _context.SaveChangesAsync();
+        //    if (result > 0)
+        //    {
+        //        _cache.Remove(cachekey);
+        //        return Ok("Created");
+        //    }
 
-            if (result > 0)
-            {
-                _cache.Remove(cachekey);
-                return Ok("Created");
-            }
+        //    return BadRequest();
+        //    }
+        //    catch (Exception ex)
+        //    {
 
-            return BadRequest();
-        }
+        //    }
+        //}
 
     }
 }

@@ -1,9 +1,11 @@
 ﻿using Inventory_management_System.Dto.Manager;
 using Inventory_management_System.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.AspNetCore.Identity;
 
 namespace Inventory_management_System.Controllers.inventroy
 {
@@ -14,11 +16,13 @@ namespace Inventory_management_System.Controllers.inventroy
     {
         private readonly InventoryDBContext _context;
         private readonly IMemoryCache _cache;
+        private readonly IPasswordHasher<BaseUser> _PasswordHasher;
         private const string cachekey = "All_Manager";
-        public ManagerController(InventoryDBContext context, IMemoryCache cache)
+        public ManagerController(InventoryDBContext context, IMemoryCache cache,IPasswordHasher<BaseUser> passwordHasher)
         {
             _context = context;
             _cache = cache;
+            _PasswordHasher  = passwordHasher;
         }
 
         // GETAll
@@ -27,22 +31,20 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetAll()
         {
-
-            if (!_cache.TryGetValue(cachekey, out List<Manager>? manager))
+            try
             {
-                manager = await _context.Managers.Include(s => s.BaseUser).ToListAsync();
-
-                if (manager == null)
+                if (!_cache.TryGetValue(cachekey, out List<Manager>? manager))
                 {
-                    return NotFound("There is no Manager");
+                    manager = await _context.Managers.Include(s => s.BaseUser).ToListAsync();
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    _cache.Set(cachekey, manager, option);
                 }
-
-                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
-
-                _cache.Set(cachekey, manager, option);
+                return Ok(manager);
             }
-
-            return Ok(manager);
+            catch (Exception ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
 
 
@@ -52,21 +54,23 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetById(int id)
         {
-            var key = $"Manager_{id}";
-
-            if (!_cache.TryGetValue(key, out Manager? man))
+            try
             {
-                man = await _context.Managers.Include(s => s.BaseUser).FirstOrDefaultAsync(s => s.id == id);
+                var key = $"Manager_{id}";
 
-                if (man == null)
+                if (!_cache.TryGetValue(key, out Manager? man))
                 {
-                    return BadRequest("There is no such manager");
-
+                    man = await _context.Managers.Include(s => s.BaseUser).FirstOrDefaultAsync(s => s.id == id);
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    _cache.Set(cachekey,man, option);
                 }
-                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
-            }
 
-            return Ok(man);
+                return Ok(man);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         // Delete
@@ -81,13 +85,13 @@ namespace Inventory_management_System.Controllers.inventroy
             try
             {
                 var manager = await _context.Managers.FirstOrDefaultAsync(s => s.id == id);
-                var Buser = await _context.Users.FirstOrDefaultAsync(s => s.Id == manager.BaseUserId);
+                var Buser = await _context.Users.FirstOrDefaultAsync(s => s.id == manager.BaseUserId);
 
                 _context.Managers.Remove(manager);
                 _context.Users.Remove(Buser);
-                _cache.Remove(cachekey);
 
-                transaction.Commit();
+                await transaction.CommitAsync();
+                _cache.Remove(cachekey);
                 return Ok("Deleted");
             }
             catch (Exception ex)
@@ -105,18 +109,19 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> Update(int id, CreateManager man)
         {
-            var transaction = await  _context.Database.BeginTransactionAsync();
+            var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 var manager = await _context.Managers.FirstOrDefaultAsync(x => x.id == id);
 
-                var Buser = await _context.Users.FirstOrDefaultAsync(s => s.Id == manager.BaseUserId);
+                var Buser = await _context.Users.FirstOrDefaultAsync(s => s.id == manager.BaseUserId);
                 Buser.Name = man.Name;
 
                 _context.Users.Attach(Buser);
-                _cache.Remove(cachekey);
 
-                transaction.Commit();
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                _cache.Remove(cachekey);
                 return Ok("Updated");
 
             }
@@ -130,7 +135,6 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         //POST
-        [Authorize(Roles = "Manager")]
 
         [HttpPost("Create")]
         public async Task<IActionResult> Create(CreateManager man)
@@ -144,16 +148,17 @@ namespace Inventory_management_System.Controllers.inventroy
                     Username = man.Username,
                     Password = man.Password,
                     Role = "Manager"
-
                 };
 
+                Buser.Password = _PasswordHasher.HashPassword(Buser, man.Password);
                 await _context.Users.AddAsync(Buser);
-                var manager = new Manager { BaseUserId = Buser.Id };
+                await _context.SaveChangesAsync();
 
+                var manager = new Manager { BaseUserId  = Buser.id };
                 await _context.Managers.AddAsync(manager);
+
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
-
                 _cache.Remove(cachekey);
                 return Ok("Created");
 
@@ -162,10 +167,7 @@ namespace Inventory_management_System.Controllers.inventroy
             {
                 await transaction.RollbackAsync();
                 return BadRequest(ex.Message);
-
             }
-
-
 
         }
 

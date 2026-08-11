@@ -1,5 +1,6 @@
 using Inventory_management_System.Models;
 using Inventory_management_System.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -39,6 +40,8 @@ builder.Services.AddHttpClient<IAIServices, OllamaAIService>(client =>
     client.BaseAddress = new Uri("http://localhost:11434");
     client.Timeout = TimeSpan.FromMinutes(5);
 });
+
+builder.Services.AddScoped<IPasswordHasher<BaseUser>, PasswordHasher<BaseUser>>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

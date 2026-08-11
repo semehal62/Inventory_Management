@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using System.Linq.Expressions;
 
 namespace Inventory_management_System.Controllers.inventroy
 {
@@ -29,21 +28,23 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetAll()
         {
-
-            if (!_cache.TryGetValue(cachekey, out  List<Item> ? item))
+            try
             {
-                 item = await _context.Items.ToListAsync();
-
-                if (item == null)
+                if (!_cache.TryGetValue(cachekey, out List<Item>? item))
                 {
-                    return NotFound("There is no Item");
-                }
-                var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(5)).SetSize(1);
+                    item = await _context.Items.ToListAsync();
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(5)).SetSize(1);
 
-                _cache.Set(cachekey, item, option);
+                    _cache.Set(cachekey, item, option);
+                }
+
+                return Ok(item);
+            }
+            catch (Exception ex)
+            {
+                return NotFound(ex.Message);
             }
 
-            return Ok(item);
         }
 
         // GetById
@@ -52,79 +53,80 @@ namespace Inventory_management_System.Controllers.inventroy
 
         public async Task<IActionResult> GetById(int id)
         {
-            string key = $"item_{id}";
-
-            if (!_cache.TryGetValue(key, out Item? item))
+            try
             {
-                item = await _context.Items.FirstOrDefaultAsync(s => s.Id == id);
+                string key = $"item_{id}";
 
-                if (item == null)
+                if (!_cache.TryGetValue(key, out Item? item))
                 {
-                    return BadRequest("There is no such Item");
-
+                    item = await _context.Items.FirstOrDefaultAsync(s => s.Id == id);
+                    _cache.Set(key, item, TimeSpan.FromMinutes(10));
                 }
-
-                _cache.Set(key, item,TimeSpan.FromMinutes(10));
+                return Ok(item);
             }
-            return Ok(item);
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         // Delete
 
-        
+
         [Authorize(Roles = "Manager")]
         [HttpDelete("Delete/{id}")]
 
         public async Task<IActionResult> Delete(int id)
         {
-            var item = await _context.Items.FirstOrDefaultAsync(s => s.Id == id);
-            if (item == null)
+            var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                return BadRequest("Id not found");
-            }
-            _context.Items.Remove(item);
-            var result = await _context.SaveChangesAsync();
+                var item = await _context.Items.FirstOrDefaultAsync(s => s.Id == id);
+                _context.Items.Remove(item);
 
-            if (result < 0)
+                await _context.SaveChangesAsync();
+                transaction.Commit();
+                _cache.Remove(cachekey);
+                return Ok("Deleted");
+            }
+            catch (Exception ex)
             {
-                return BadRequest("Can't delete");
+                await transaction.RollbackAsync();
+                return BadRequest(ex.Message);
             }
-            _cache.Remove(cachekey);
-
-            return Ok("Deleted");
         }
 
-        //PUt
+        //PUT
         [Authorize(Roles = "Manager")]
         [HttpPut("Update/{id}")]
 
         public async Task<IActionResult> Update(int id, CreateItem item)
         {
-            var it = await _context.Items.FirstOrDefaultAsync(s => s.Id == id);
-            if (it == null)
+            var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                return BadRequest();
+                var it = await _context.Items.FirstOrDefaultAsync(s => s.Id == id);
+
+                it.Name = item.Name;
+                it.Quantity = item.Quantity;
+                it.MangerId = item.ManagerId;
+                it.Enter_date = DateTime.UtcNow;
+                it.Price = item.Prices;
+
+                _context.Items.Attach(it);
+                _context.Items.Attach(it).State = EntityState.Modified;
+
+                await _context.SaveChangesAsync();
+                transaction.Commit();
+                _cache.Remove(cachekey);
+                return Ok("success");
             }
-
-            it.Name = item.Name;
-            it.Quantity = item.Quantity;
-            it.MangerId = item.ManagerId;
-            it.Enter_date = DateTime.UtcNow;
-            it.Price = item.Prices;
-
-            _context.Items.Attach(it);
-            _context.Items.Attach(it).State = EntityState.Modified;
-
-            var result = await _context.SaveChangesAsync();
-
-            if (result == 0)
+            catch (Exception ex)
             {
-                return BadRequest();
+                await transaction.RollbackAsync();
+                return BadRequest(ex.Message);
+
             }
-
-            _cache.Remove(cachekey);
-
-            return Ok("success");
 
         }
 
@@ -135,24 +137,29 @@ namespace Inventory_management_System.Controllers.inventroy
         [HttpPost("Create")]
         public async Task<IActionResult> Create(CreateItem item)
         {
-            var it = new Item
+            var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                Name = item.Name,
-                Quantity = item.Quantity,
-                MangerId = item.ManagerId,
-                Price = item.Prices
-            };
+                var it = new Item
+                {
+                    Name = item.Name,
+                    Quantity = item.Quantity,
+                    MangerId = item.ManagerId,
+                    Price = item.Prices
+                };
 
-            await _context.Items.AddAsync(it);
-            var result = await _context.SaveChangesAsync();
-            if (result <= 0)
-            {
-                return BadRequest();
+                await _context.Items.AddAsync(it);
 
+                await _context.SaveChangesAsync();
+                transaction.Commit();
+                _cache.Remove(cachekey);
+                return Ok("Created");
             }
-            _cache.Remove(cachekey);
-
-            return Ok("Created");
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest(ex.Message);
+            }
 
         }
     }

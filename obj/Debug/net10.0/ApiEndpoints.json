@@ -11,22 +11,6 @@
   },
   {
     "ContainingType": "Inventory_management_System.Controllers.inventroy.Audits_logController",
-    "Method": "Create",
-    "RelativePath": "Audits_log/Create",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "aud",
-        "Type": "Inventory_management_System.Dto.Audit_log.CreateAudit_log",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "Inventory_management_System.Controllers.inventroy.Audits_logController",
     "Method": "Delete",
     "RelativePath": "Audits_log/Delete/{id}",
     "HttpMethod": "DELETE",
