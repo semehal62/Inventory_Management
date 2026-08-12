@@ -33,6 +33,10 @@ namespace Inventory_management_System.Controllers.inventroy
                 var user = await _context.Users.FirstOrDefaultAsync(
                     u => u.Username == log.Username);
 
+                if (user == null)
+                {
+                    return Unauthorized("Invalid username or password.");
+                }
                 var result = _passwordHasher.VerifyHashedPassword(user, user.Password, log.Password);
                 if(result == PasswordVerificationResult.Failed)
                 {

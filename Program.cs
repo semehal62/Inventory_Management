@@ -36,6 +36,7 @@ builder.Services.Configure<MemoryCacheOptions>(options =>
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 //builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen();
 var connectionString = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddDbContext<InventoryDBContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddHttpClient<IAIServices, OllamaAIService>(client =>
@@ -74,11 +75,13 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     //app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
+app.UseAuthentication();
 
 app.UseAuthorization();
 
