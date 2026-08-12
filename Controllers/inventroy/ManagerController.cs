@@ -17,7 +17,7 @@ namespace Inventory_management_System.Controllers.inventroy
         private readonly InventoryDBContext _context;
         private readonly IMemoryCache _cache;
         private readonly IPasswordHasher<BaseUser> _PasswordHasher;
-        private const string cachekey = "All_Manager";
+        private const string cachekey = "All_User";
         public ManagerController(InventoryDBContext context, IMemoryCache cache,IPasswordHasher<BaseUser> passwordHasher)
         {
             _context = context;
@@ -26,7 +26,7 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         // GETAll
-        [Authorize]
+        //[Authorize]
         [HttpGet("GetAll")]
 
         public async Task<IActionResult> GetAll()
@@ -36,7 +36,7 @@ namespace Inventory_management_System.Controllers.inventroy
                 if (!_cache.TryGetValue(cachekey, out List<Manager>? manager))
                 {
                     manager = await _context.Managers.Include(s => s.BaseUser).ToListAsync();
-                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)).SetSize(1); ;
                     _cache.Set(cachekey, manager, option);
                 }
                 return Ok(manager);
@@ -56,12 +56,12 @@ namespace Inventory_management_System.Controllers.inventroy
         {
             try
             {
-                var key = $"Manager_{id}";
+                var key = $"User_{id}";
 
                 if (!_cache.TryGetValue(key, out Manager? man))
                 {
-                    man = await _context.Managers.Include(s => s.BaseUser).FirstOrDefaultAsync(s => s.id == id);
-                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    man = await _context.Managers.Include(s => s.BaseUser).FirstOrDefaultAsync(s => s.Id == id);
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)).SetSize(1); ;
                     _cache.Set(cachekey,man, option);
                 }
 
@@ -84,12 +84,13 @@ namespace Inventory_management_System.Controllers.inventroy
 
             try
             {
-                var manager = await _context.Managers.FirstOrDefaultAsync(s => s.id == id);
-                var Buser = await _context.Users.FirstOrDefaultAsync(s => s.id == manager.BaseUserId);
+                var manager = await _context.Managers.FirstOrDefaultAsync(s => s.Id == id);
+                var Buser = await _context.Users.FirstOrDefaultAsync(s => s.Id == manager.BaseUserId);
 
                 _context.Managers.Remove(manager);
                 _context.Users.Remove(Buser);
 
+                await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
                 _cache.Remove(cachekey);
                 return Ok("Deleted");
@@ -112,11 +113,16 @@ namespace Inventory_management_System.Controllers.inventroy
             var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var manager = await _context.Managers.FirstOrDefaultAsync(x => x.id == id);
+                var manager = await _context.Managers.FirstOrDefaultAsync(x => x.Id == id);
 
-                var Buser = await _context.Users.FirstOrDefaultAsync(s => s.id == manager.BaseUserId);
+                var Buser = await _context.Users.FirstOrDefaultAsync(s => s.Id == manager.BaseUserId);
                 Buser.Name = man.Name;
-
+                var result = _PasswordHasher.VerifyHashedPassword(Buser, Buser.Password, man.Password);
+                if (result == PasswordVerificationResult.Failed)
+                {
+                    return Unauthorized();
+                }
+                Buser.Password = _PasswordHasher.HashPassword(Buser, man.Password);
                 _context.Users.Attach(Buser);
 
                 await _context.SaveChangesAsync();
@@ -137,6 +143,7 @@ namespace Inventory_management_System.Controllers.inventroy
         //POST
 
         [HttpPost("Create")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> Create(CreateManager man)
         {
             var transaction = await _context.Database.BeginTransactionAsync();
@@ -154,7 +161,7 @@ namespace Inventory_management_System.Controllers.inventroy
                 await _context.Users.AddAsync(Buser);
                 await _context.SaveChangesAsync();
 
-                var manager = new Manager { BaseUserId  = Buser.id };
+                var manager = new Manager { BaseUserId  = Buser.Id };
                 await _context.Managers.AddAsync(manager);
 
                 await _context.SaveChangesAsync();

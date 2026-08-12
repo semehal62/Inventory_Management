@@ -157,4 +157,5 @@ D:\Inventory management System\obj\Debug\net10.0\refint\Inventory management Sys
 D:\Inventory management System\obj\Debug\net10.0\Inventory management System.pdb
 D:\Inventory management System\obj\Debug\net10.0\Inventory management System.genruntimeconfig.cache
 D:\Inventory management System\obj\Debug\net10.0\ref\Inventory management System.dll
+D:\Inventory management System\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
 D:\Inventory management System\obj\Debug\net10.0\staticwebassets.upToDateCheck.txt

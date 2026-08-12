@@ -22,13 +22,13 @@ namespace Inventory_management_System.Services
 
                 Analyze the following sale:
 
-                Sale ID: {sale.Id}
-                Employee ID: {sale.EmployeeId}
-                Item ID: {sale.ItemsId}
-                Quantity Sold: {sale.Quantity_Sold}
-                Total Price: {sale.Total_prices}
-                Sale Date: {sale.Sold_date}
-                Tracking Status: {sale.TrackStatus}
+                Sale ID: {{{sale.Id}}}
+                Employee ID: {{{sale.BaseUserId}}}
+                Item ID: {{{sale.ItemsId}}}
+                Quantity Sold: {{{sale.Quantity_Sold}}}
+                Total Price: {{{sale.Total_prices}}}
+                Sale Date: {{{sale.Sold_date}}}
+                Tracking Status: {{{sale.TrackStatus}}}
 
                 Classify this sale as exactly one of:
 
@@ -94,6 +94,21 @@ namespace Inventory_management_System.Services
         {
             Console.WriteLine("AI RESPONSE:");
             Console.WriteLine(aiText);
+
+            aiText = aiText.Trim();
+
+            if (aiText.StartsWith("```"))
+            {
+                aiText = aiText
+                    .Replace("```json", "")
+                    .Replace("```", "")
+                    .Trim();
+            }
+
+            if (aiText.StartsWith("{{") && aiText.EndsWith("}}"))
+            {
+                aiText = aiText.Substring(1, aiText.Length - 2);
+            }
 
             using var document = JsonDocument.Parse(aiText);
 

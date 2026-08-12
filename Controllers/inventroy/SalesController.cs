@@ -25,7 +25,7 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         // GETAll
-        [Authorize]
+        //[Authorize]
         [HttpGet("GetAll")]
 
         public async Task<IActionResult> GetAll()
@@ -35,7 +35,7 @@ namespace Inventory_management_System.Controllers.inventroy
                 if (!_cache.TryGetValue(cachekey, out List<Sale>? sale))
                 {
                     sale = await _context.Sales.ToListAsync();
-                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)).SetSize(1);
                     _cache.Set(cachekey, sale, option);
                 }
                 return Ok(sale);
@@ -106,7 +106,7 @@ namespace Inventory_management_System.Controllers.inventroy
             try
             {
                 var sale = await _context.Sales.FirstOrDefaultAsync(d => d.Id == id);
-                sale.EmployeeId = sal.EmployeeId;
+                sale.BaseUserId = sal.BaseUserId;
                 sale.ItemsId = sal.ItemsId;
                 sale.Quantity_Sold = sal.Quantity_Sold;
                 sale.Total_prices = sal.Total_prices;
@@ -128,7 +128,7 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         //POST
-        [Authorize]
+        //[Authorize]
         [HttpPost("Create")]
 
         public async Task<IActionResult> Create(CreateSale sale)
@@ -138,7 +138,8 @@ namespace Inventory_management_System.Controllers.inventroy
             {
                 var sold = new Sale
                 {
-                    EmployeeId = sale.EmployeeId,
+                    BaseUserId = sale.BaseUserId,
+                    Sold_date = DateTime.UtcNow,
                     ItemsId = sale.ItemsId,
                     Quantity_Sold = sale.Quantity_Sold,
                     Total_prices = sale.Total_prices
@@ -146,6 +147,8 @@ namespace Inventory_management_System.Controllers.inventroy
                 };
 
                 await _context.Sales.AddAsync(sold);
+                await _context.SaveChangesAsync();
+
                 var aiResult = await _aiservices.AnalyzeSaleAsync(sold);
 
                 var auditLog = new Audit_Log
@@ -157,8 +160,8 @@ namespace Inventory_management_System.Controllers.inventroy
                 };
 
                 await _context.Audit_logs.AddAsync(auditLog);
-
                 await _context.SaveChangesAsync();
+
                 await transaction.CommitAsync();
                 _cache.Remove(cachekey);
                 return Ok(new

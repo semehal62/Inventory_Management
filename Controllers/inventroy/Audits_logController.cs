@@ -25,7 +25,7 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         // GETAll
-        [Authorize]
+        //[Authorize]
         [HttpGet("GetAll")]
 
         public async Task<IActionResult> GetAll()
@@ -39,7 +39,7 @@ namespace Inventory_management_System.Controllers.inventroy
                     var Audit = await _context.Audit_logs.ToListAsync();
                     auditData = Audit.Select(p => new AudtViewDto
                     {
-                        Id = p.id,
+                        Id = p.Id,
                         Sold = p.Sold,
                         SoldId = p.SoldId,
                         AI_Status = p.AI_Status.ToString(),
@@ -48,7 +48,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
                     }).ToList();
 
-                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)).SetSize(1); 
                     _cache.Set(cachekey, auditData, option);
 
                 }
@@ -72,8 +72,8 @@ namespace Inventory_management_System.Controllers.inventroy
                 var key = $"Audit{id}";
                 if (_cache.TryGetValue(key, out var audit))
                 {
-                    audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.id == id);
-                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.Id == id);
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)).SetSize(1); 
                     _cache.Set(key, audit, option);
                 }
                 return Ok(audit);
@@ -95,7 +95,7 @@ namespace Inventory_management_System.Controllers.inventroy
             var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.id == id);
+                var audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.Id == id);
                 _context.Audit_logs.Remove(audit);
 
                 await _context.SaveChangesAsync();
@@ -120,7 +120,7 @@ namespace Inventory_management_System.Controllers.inventroy
             var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.id == id);
+                var audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.Id == id);
                 audit.AI_Status = aud.AI_Status;
 
                 audit.Anomalies_Detected = aud.Anomalies_Detedced;

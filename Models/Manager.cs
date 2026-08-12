@@ -2,7 +2,7 @@
 {
     public class Manager
     {
-        public  int id {  get; set; }
+        public  int Id {  get; set; }
         public BaseUser ? BaseUser { get; set; }
         public required int BaseUserId { get; set; }
     }

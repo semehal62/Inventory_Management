@@ -3,9 +3,9 @@
     public class Sale
     {
         public int Id {  get; set; }
-        public Employee ? Employee { get; set; }
-        public int EmployeeId { get; set; }
-        public DateTime  Sold_date { get; set; }
+        public BaseUser ? BaseUser { get; set; }
+        public int BaseUserId { get; set; }
+        public DateTime Sold_date { get; set; }
         public Item ? Items { get; set; }
         public int ItemsId { get; set; }
         public required int Quantity_Sold { get; set; }

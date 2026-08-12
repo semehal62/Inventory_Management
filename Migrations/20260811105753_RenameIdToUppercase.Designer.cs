@@ -4,6 +4,7 @@ using Inventory_management_System.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Inventory_management_System.Migrations
 {
     [DbContext(typeof(InventoryDBContext))]
-    partial class InventoryDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260811105753_RenameIdToUppercase")]
+    partial class RenameIdToUppercase
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -24,11 +27,11 @@ namespace Inventory_management_System.Migrations
 
             modelBuilder.Entity("Inventory_management_System.Models.Audit_Log", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("id"));
 
                     b.Property<int>("AI_Status")
                         .HasColumnType("int");
@@ -44,7 +47,7 @@ namespace Inventory_management_System.Migrations
                     b.Property<int>("SoldId")
                         .HasColumnType("int");
 
-                    b.HasKey("Id");
+                    b.HasKey("id");
 
                     b.HasIndex("SoldId");
 
@@ -53,11 +56,11 @@ namespace Inventory_management_System.Migrations
 
             modelBuilder.Entity("Inventory_management_System.Models.BaseUser", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("id"));
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -75,23 +78,23 @@ namespace Inventory_management_System.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.HasKey("Id");
+                    b.HasKey("id");
 
                     b.ToTable("Users");
                 });
 
             modelBuilder.Entity("Inventory_management_System.Models.Employee", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("id"));
 
                     b.Property<int>("BaseUserId")
                         .HasColumnType("int");
 
-                    b.HasKey("Id");
+                    b.HasKey("id");
 
                     b.HasIndex("BaseUserId");
 
@@ -109,7 +112,7 @@ namespace Inventory_management_System.Migrations
                     b.Property<DateTime>("Enter_date")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("ManagerId")
+                    b.Property<int?>("Managerid")
                         .HasColumnType("int");
 
                     b.Property<int?>("MangerId")
@@ -127,23 +130,23 @@ namespace Inventory_management_System.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ManagerId");
+                    b.HasIndex("Managerid");
 
                     b.ToTable("Items");
                 });
 
             modelBuilder.Entity("Inventory_management_System.Models.Manager", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("id"));
 
                     b.Property<int>("BaseUserId")
                         .HasColumnType("int");
 
-                    b.HasKey("Id");
+                    b.HasKey("id");
 
                     b.HasIndex("BaseUserId");
 
@@ -158,7 +161,7 @@ namespace Inventory_management_System.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("BaseUserId")
+                    b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
                     b.Property<int>("ItemsId")
@@ -178,7 +181,7 @@ namespace Inventory_management_System.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BaseUserId");
+                    b.HasIndex("EmployeeId");
 
                     b.HasIndex("ItemsId");
 
@@ -211,7 +214,7 @@ namespace Inventory_management_System.Migrations
                 {
                     b.HasOne("Inventory_management_System.Models.Manager", "Manager")
                         .WithMany()
-                        .HasForeignKey("ManagerId");
+                        .HasForeignKey("Managerid");
 
                     b.Navigation("Manager");
                 });
@@ -229,9 +232,9 @@ namespace Inventory_management_System.Migrations
 
             modelBuilder.Entity("Inventory_management_System.Models.Sale", b =>
                 {
-                    b.HasOne("Inventory_management_System.Models.BaseUser", "BaseUser")
+                    b.HasOne("Inventory_management_System.Models.Employee", "Employee")
                         .WithMany()
-                        .HasForeignKey("BaseUserId")
+                        .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -241,7 +244,7 @@ namespace Inventory_management_System.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("BaseUser");
+                    b.Navigation("Employee");
 
                     b.Navigation("Items");
                 });

@@ -60,7 +60,8 @@ namespace Inventory_management_System.Controllers.inventroy
                 if (!_cache.TryGetValue(key, out Item? item))
                 {
                     item = await _context.Items.FirstOrDefaultAsync(s => s.Id == id);
-                    _cache.Set(key, item, TimeSpan.FromMinutes(10));
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(5)).SetSize(1);
+                    _cache.Set(key, item, option);
                 }
                 return Ok(item);
             }

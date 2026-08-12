@@ -3,7 +3,7 @@ namespace Inventory_management_System.Models
 {
     public class Audit_Log
     {
-        public int id { get; set; }
+        public int Id { get; set; }
         public Sale? Sold { get; set; }
         public int SoldId { get; set; }
         public required AI_Status AI_Status { get; set; }
