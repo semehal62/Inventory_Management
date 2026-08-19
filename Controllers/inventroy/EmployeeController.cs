@@ -46,7 +46,7 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         // GetById
-        //[Authorize]
+        [Authorize]
         [HttpGet("GetById/{id}")]
 
         public async Task<IActionResult> GetById(int id)
@@ -56,7 +56,7 @@ namespace Inventory_management_System.Controllers.inventroy
                 var key = $"User_{id}";
                 if (!_cache.TryGetValue(key, out Employee? emp))
                 {
-                    emp = await _context.Employees.Include(s => s.BaseUser).FirstOrDefaultAsync(s => s.BaseUserId == id);
+                    emp = await _context.Employees.Include(s => s.BaseUser).FirstOrDefaultAsync(s => s.Id == id);
                     var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)).SetSize(1); ;
                     _cache.Set(key, emp, option);
                 }

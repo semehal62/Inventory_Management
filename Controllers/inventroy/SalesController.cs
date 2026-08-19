@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using System.Security.Claims;
 
 namespace Inventory_management_System.Controllers.inventroy
 {
@@ -25,7 +26,7 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         // GETAll
-        //[Authorize]
+        [Authorize]
         [HttpGet("GetAll")]
 
         public async Task<IActionResult> GetAll()
@@ -34,7 +35,7 @@ namespace Inventory_management_System.Controllers.inventroy
             {
                 if (!_cache.TryGetValue(cachekey, out List<Sale>? sale))
                 {
-                    sale = await _context.Sales.ToListAsync();
+                    sale = await _context.Sales.Include(s => s.BaseUser).ToListAsync();
                     var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)).SetSize(1);
                     _cache.Set(cachekey, sale, option);
                 }
@@ -58,8 +59,8 @@ namespace Inventory_management_System.Controllers.inventroy
 
                 if (!_cache.TryGetValue(key, out Sale? sale))
                 {
-                    sale = await _context.Sales.FirstOrDefaultAsync(s => s.Id == id);
-                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    sale = await _context.Sales.Include(s => s.BaseUser).FirstOrDefaultAsync(s => s.Id == id);
+                    var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)).SetSize(1);
                     _cache.Set(cachekey, sale, option);
                 }
                 return Ok(sale);
@@ -105,20 +106,33 @@ namespace Inventory_management_System.Controllers.inventroy
             var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                var baseuserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (!int.TryParse(baseuserId, out int baseuser))
+                {
+                    return Unauthorized();
+                }
                 var sale = await _context.Sales.FirstOrDefaultAsync(d => d.Id == id);
-                sale.BaseUserId = sal.BaseUserId;
+                sale.BaseUserId = baseuser;
                 sale.ItemsId = sal.ItemsId;
                 sale.Quantity_Sold = sal.Quantity_Sold;
                 sale.Total_prices = sal.Total_prices;
                 sale.Sold_date = DateTime.UtcNow;
 
+                var airesult = await _aiservices.AnalyzeSaleAsync(sale);
+
+                var audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.SoldId == id);
+
+                audit.AI_Status = airesult.Status;
+                audit.Anomalies_Detected = airesult.Anomalies_Detected;
+                audit.Explanation = airesult.Explanation;
+
+                _context.Audit_logs.Attach(audit);
                 _context.Sales.Attach(sale);
-                _context.Sales.Attach(sale).State = EntityState.Modified;
-                _cache.Remove(cachekey);
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return Ok("suncess");
+                _cache.Remove(cachekey);
+                return Ok("success");
             }
             catch (Exception ex)
             {
@@ -128,7 +142,7 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         //POST
-        //[Authorize]
+        [Authorize]
         [HttpPost("Create")]
 
         public async Task<IActionResult> Create(CreateSale sale)
@@ -136,9 +150,14 @@ namespace Inventory_management_System.Controllers.inventroy
             var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                var baseUseId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if(!int.TryParse(baseUseId,out int baseuId))
+                {
+                    return NotFound();
+                }
                 var sold = new Sale
                 {
-                    BaseUserId = sale.BaseUserId,
+                    BaseUserId = baseuId,
                     Sold_date = DateTime.UtcNow,
                     ItemsId = sale.ItemsId,
                     Quantity_Sold = sale.Quantity_Sold,
@@ -159,11 +178,18 @@ namespace Inventory_management_System.Controllers.inventroy
                     Explanation = aiResult.Explanation
                 };
 
+                var item = await _context.Items.FirstOrDefaultAsync(s => s.Id == sale.ItemsId);
+                if(aiResult.Status.ToString() == "Approved")
+                {
+                    item.Quantity -= sale.Quantity_Sold;
+                }
+
                 await _context.Audit_logs.AddAsync(auditLog);
                 await _context.SaveChangesAsync();
 
                 await transaction.CommitAsync();
                 _cache.Remove(cachekey);
+
                 return Ok(new
                 {
                     Message = "Sale created and audited successfully",

@@ -25,7 +25,7 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         // GETAll
-        //[Authorize]
+        [Authorize]
         [HttpGet("GetAll")]
 
         public async Task<IActionResult> GetAll()
@@ -70,7 +70,7 @@ namespace Inventory_management_System.Controllers.inventroy
             try
             {
                 var key = $"Audit{id}";
-                if (_cache.TryGetValue(key, out var audit))
+                if (!_cache.TryGetValue(key, out var audit))
                 {
                     audit = await _context.Audit_logs.FirstOrDefaultAsync(s => s.Id == id);
                     var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)).SetSize(1); 
@@ -125,6 +125,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
                 audit.Anomalies_Detected = aud.Anomalies_Detedced;
                 audit.SoldId = aud.SoldId;
+                audit.Explanation = aud.Explanation;
 
                 _context.Audit_logs.Attach(audit);
                 _context.Audit_logs.Attach(audit).State = EntityState.Modified;

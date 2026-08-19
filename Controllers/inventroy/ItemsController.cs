@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using System.Security.Claims;
 
 namespace Inventory_management_System.Controllers.inventroy
 {
@@ -32,7 +33,7 @@ namespace Inventory_management_System.Controllers.inventroy
             {
                 if (!_cache.TryGetValue(cachekey, out List<Item>? item))
                 {
-                    item = await _context.Items.ToListAsync();
+                    item = await _context.Items.Include(s => s.Manager).ThenInclude(x =>x.BaseUser).ToListAsync();
                     var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(5)).SetSize(1);
 
                     _cache.Set(cachekey, item, option);
@@ -59,7 +60,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
                 if (!_cache.TryGetValue(key, out Item? item))
                 {
-                    item = await _context.Items.FirstOrDefaultAsync(s => s.Id == id);
+                    item = await _context.Items.Include(s => s.Manager).ThenInclude(x => x.BaseUser).FirstOrDefaultAsync(s => s.Id == id);
                     var option = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(5)).SetSize(1);
                     _cache.Set(key, item, option);
                 }
@@ -110,7 +111,7 @@ namespace Inventory_management_System.Controllers.inventroy
 
                 it.Name = item.Name;
                 it.Quantity = item.Quantity;
-                it.MangerId = item.ManagerId;
+                it.ManagerId = item.ManagerId;
                 it.Enter_date = DateTime.UtcNow;
                 it.Price = item.Prices;
 
@@ -141,11 +142,22 @@ namespace Inventory_management_System.Controllers.inventroy
             var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                var baseuserIdstring  = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if(!int.TryParse(baseuserIdstring, out int baseuserId))
+                {
+                    return NotFound();
+                }
+                var managerId = await _context.Managers.FirstOrDefaultAsync(s => s.BaseUserId == baseuserId);
+                if(managerId == null)
+                {
+                    return Unauthorized();
+                }
+
                 var it = new Item
                 {
                     Name = item.Name,
                     Quantity = item.Quantity,
-                    MangerId = item.ManagerId,
+                    ManagerId = managerId.Id,
                     Price = item.Prices
                 };
 

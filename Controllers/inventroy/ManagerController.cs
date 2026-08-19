@@ -26,7 +26,7 @@ namespace Inventory_management_System.Controllers.inventroy
         }
 
         // GETAll
-        //[Authorize]
+        [Authorize]
         [HttpGet("GetAll")]
 
         public async Task<IActionResult> GetAll()
@@ -75,7 +75,6 @@ namespace Inventory_management_System.Controllers.inventroy
 
         // Delete
         [Authorize(Roles = "Manager")]
-
         [HttpDelete("Delete/{id}")]
 
         public async Task<IActionResult> Delete(int id)
@@ -105,7 +104,6 @@ namespace Inventory_management_System.Controllers.inventroy
 
         //Update
         [Authorize(Roles = "Manager")]
-
         [HttpPut("Update/{id}")]
 
         public async Task<IActionResult> Update(int id, CreateManager man)
